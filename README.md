@@ -24,6 +24,10 @@
 
 备用地址 [arknbak.lolicon.app](https://arknbak.lolicon.app)
 
+Vercel部署注意
+进入项目设置
+把Node.js版本降回16.0
+
 ## 主要功能
 
 - 公开招募计算 + 词条截图识别
