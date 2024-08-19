@@ -39,9 +39,7 @@ export const useMaterialValueStore = defineStore('materialValue', () => {
   const fetchData = async () => {
     if (fetchFailed >= MAX_FETCH_TRY) return;
     try {
-      const res = await fetch(
-        'https://ark.yituliu.cn/backend/item/value?expCoefficient=0.625',
-      ).then(r => r.json());
+      const res = await fetch('https://backend.yituliu.cn/item/value').then(r => r.json());
       if (!(Array.isArray(res.data) && res.data.length)) {
         console.error('[FetchMaterialValueData] fetch failed', res);
         throw new Error(res.msg);
@@ -59,12 +57,22 @@ export const useMaterialValueStore = defineStore('materialValue', () => {
     }
   };
 
+  const omitFieldsSet = new Set([
+    'zoneId',
+    'sampleNum',
+    'event',
+    'retro',
+    'cost',
+    'lmd',
+    'cardExp',
+  ]);
+
   const calcStageEfficiency = dropTable => {
     if (!dataReady.value) return {};
     return mapValues(dropTable, drops => {
-      let ap = 0;
+      let ap = drops.lmd * data.value[4001];
       _.each(drops, (v, k) => {
-        if (k in data.value && v > 0) {
+        if (!omitFieldsSet.has(k) && k in data.value && v > 0) {
           ap += v * data.value[k];
         }
       });

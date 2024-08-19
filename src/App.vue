@@ -131,7 +131,7 @@
     <!-- /应用栏 -->
     <!-- 抽屉 -->
     <div id="app-drawer" class="mdui-drawer mdui-drawer-close mdui-hidden-sm-up">
-      <div class="app-drawer-logo" @touchend="enterDebugMode">Arknights<br />Toolbox</div>
+      <div class="app-drawer-logo" @click="enterDebugMode">Arknights<br />Toolbox</div>
       <div class="mdui-list mdui-p-t-0">
         <router-link
           v-for="{ path, name } in routes.filter(({ name }) => name in routeMeta)"
@@ -160,13 +160,6 @@
       </div>
     </div>
     <!-- /抽屉 -->
-    <AlertBar
-      v-if="$root.localeTW && !$root.serverTW"
-      type="success"
-      flag="twServerReSupport20230622"
-      :style="{ transform: $root.smallScreen ? 'translateY(-16px)' : 'translateY(-32px)' }"
-      >明日方舟工具箱已經重新支援繁中服，可在首頁設定或右上角按鈕進行切換。</AlertBar
-    >
     <div id="main-container" class="mdui-container">
       <transition name="fade" mode="out-in" @after-leave="scrollTop" @enter="$mutation">
         <keep-alive>
@@ -195,20 +188,23 @@
 
     <paste-capturer />
     <scroll-to-top />
+
+    <MigrationDialog v-if="showMigrationDialog" />
   </div>
 </template>
 
 <script>
 import { defineComponent } from 'vue';
-import AlertBar from '@/components/AlertBar.vue';
 import PasteCapturer from '@/components/PasteCapturer.vue';
 import ScrollToTop from '@/components/ScrollToTop.vue';
+import MigrationDialog from './components/home/MigrationDialog.vue';
 import { router, meta as routeMeta } from './router';
-import { VConsoleLoaded, loadVConsole } from '@/utils/vConsole';
+import { vConsoleLoaded, loadVConsole } from '@/utils/vConsole';
 import MduiTab from '@/utils/MduiTab';
 import { IS_DEV } from '@/utils/env';
 import { mapState } from 'pinia';
 import { useHotUpdateStore } from './store/hotUpdate';
+import { SHOULD_MIGRATE } from './utils/migration';
 
 const mduiTab = new MduiTab('#app-tab');
 
@@ -218,7 +214,7 @@ router.afterEach(to => {
 
 export default defineComponent({
   name: 'app',
-  components: { PasteCapturer, ScrollToTop, AlertBar },
+  components: { PasteCapturer, ScrollToTop, MigrationDialog },
   setup() {
     return {
       routeMeta,
@@ -230,6 +226,7 @@ export default defineComponent({
     nextServer: null,
     nextTheme: null,
     nextLocale: null,
+    showMigrationDialog: SHOULD_MIGRATE,
   }),
   computed: {
     ...mapState(useHotUpdateStore, ['dataReady', 'showWarningIcon']),
@@ -245,9 +242,9 @@ export default defineComponent({
       document.getElementById('wrapper').scroll(0, 0);
     },
     enterDebugMode() {
-      if (VConsoleLoaded()) return;
+      if (vConsoleLoaded()) return;
       this.debugClickCount++;
-      if (this.debugClickCount === 10) loadVConsole();
+      if (this.debugClickCount === 5) loadVConsole();
     },
     changeServer() {
       if (this.nextServer === null) return;
@@ -267,6 +264,12 @@ export default defineComponent({
   },
   mounted() {
     mduiTab.init();
+    this.$$('#app-drawer').on('close.mdui.drawer', () => {
+      this.debugClickCount = 0;
+    });
+  },
+  beforeDestroy() {
+    this.$$('#app-drawer').off('close.mdui.drawer');
   },
 });
 </script>
@@ -322,6 +325,7 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+  touch-action: manipulation;
 }
 body {
   box-sizing: border-box;
@@ -439,6 +443,9 @@ a {
   filter: none !important;
 }
 
+.of-hidden {
+  overflow: hidden;
+}
 .no-wrap {
   white-space: nowrap;
 }
@@ -545,13 +552,16 @@ a {
 .btn-group {
   display: inline-flex;
   flex-wrap: nowrap;
+  vertical-align: middle;
+  margin: 2px 4px 2px 0;
+  & > .mdui-btn {
+    margin: 0 !important;
+  }
   &-left {
-    margin-right: 0 !important;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
   &-right {
-    margin-left: 0 !important;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: rgba(0, 0, 0, 0.13) 1px solid;
@@ -601,8 +611,16 @@ a {
   border: none !important;
 }
 
+.mdui-m-l-auto {
+  margin-left: auto !important;
+}
+
 .mdui-m-l-05 {
   margin-left: 4px !important;
+}
+
+.mdui-p-b-05 {
+  padding-bottom: 4px !important;
 }
 
 body.mdui-locked {
@@ -748,8 +766,7 @@ body.mdui-locked {
   }
 }
 .tag-btn {
-  margin: 2px 4px;
-  margin-left: 0;
+  margin: 2px 4px 2px 0;
   min-width: 0;
   padding: 0 11px;
   text-transform: unset;
@@ -911,7 +928,7 @@ body.mdui-theme-layout-dark {
   .mdui-tooltip {
     background-color: #484848;
   }
-  .mdui-btn[disabled],
+  .mdui-btn[disabled]:not(.mdui-btn-transparent),
   .mdui-fab[disabled] {
     &,
     &:active,

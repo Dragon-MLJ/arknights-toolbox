@@ -15,17 +15,17 @@
     </td>
     <td v-else class="hidden"></td>
     <td class="mdui-text-center no-wrap">{{ $t(`riic.table.unlock.${skill.unlock}`) }}</td>
-    <td class="mdui-text-center mdui-hidden-sm-down no-wrap">{{
+    <td class="mdui-text-center mdui-hidden-sm-down no-wrap can-sl">{{
       $t(`building.name.${getInfoById(skill.id).building}`)
     }}</td>
     <td class="mdui-text-center no-wrap">
-      <span class="skill-card" v-theme-class="color[getInfoById(skill.id).building]">{{
+      <span class="skill-card can-sl" v-theme-class="color[getInfoById(skill.id).building]">{{
         $t(`building.buff.name.${skill.id}`)
       }}</span>
     </td>
     <td class="mdui-p-y-0">
       <DataImg
-        class="building-skill-icon no-pe"
+        class="building-skill-icon"
         type="building_skill"
         :name="buildingBuff.data[skill.id].icon"
         :lazy="true"

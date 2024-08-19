@@ -86,6 +86,7 @@
                   :class="{ empty: preset.length === 0 }"
                   @tags-changed="usePreset"
                   @before-adding-tag="showPresetBeforeAddTag"
+                  @focus="updateSklandCultivateIfSupport"
                 >
                   <div
                     slot="autocomplete-item"
@@ -94,15 +95,21 @@
                     class="mdui-list-item mdui-p-y-0 mdui-p-x-1"
                   >
                     <div class="mdui-list-item-avatar lh-0"
-                      ><avatar
+                      ><Avatar
                         v-if="preset"
-                        class="no-pe"
                         :key="`head-${props.item.text}`"
                         :name="props.item.name"
                     /></div>
-                    <div class="mdui-list-item-content mdui-p-y-0 mdui-m-l-1">{{
-                      props.item.text
-                    }}</div>
+                    <div
+                      class="mdui-list-item-content mdui-p-y-0 mdui-m-l-1 mdui-valign flex-nowrap no-wrap of-hidden"
+                    >
+                      <span class="mdui-text-truncate">{{ props.item.text }}</span>
+                      <small
+                        v-if="props.item.cultivateText"
+                        class="preset-cultivate-text mdui-text-truncate mdui-m-l-auto mdui-p-l-1"
+                        >{{ props.item.cultivateText }}</small
+                      >
+                    </div>
                   </div>
                   <span
                     class="no-sl"
@@ -141,10 +148,10 @@
                     <drag
                       :key="char.name"
                       class="mdui-chip no-bs mdui-m-r-1 pointer"
-                      :class="{ 'opacity-5': !$root.isImplementedChar(char.name) }"
+                      :class="{ 'opacity-5': !$root.isReleasedChar(char.name) }"
                       @click="$refs.presetTodoDialog.open({ tag: char, index })"
                     >
-                      <avatar class="mdui-chip-icon no-pe" :name="char.name" />
+                      <Avatar class="mdui-chip-icon" :name="char.name" />
                       <span class="mdui-chip-title">{{ char.text }}</span>
                     </drag>
                   </template>
@@ -215,19 +222,67 @@
                   >{{ $t('cultivate.panel.button.resetOwned') }}</button
                 >
                 <button
+                  v-if="jsonStorageAvailable"
                   class="mdui-btn mdui-ripple mdui-btn-dense tag-btn"
                   v-theme-class="$root.color.blueBtn"
                   @click="$refs.dataSyncDialog.open()"
                   ><i class="mdui-icon material-icons mdui-icon-left">cloud</i
                   >{{ $t('cultivate.panel.button.cloudSync') }}</button
                 >
+                <div class="btn-group">
+                  <button
+                    class="mdui-btn mdui-ripple mdui-btn-dense tag-btn"
+                    :class="{ 'btn-group-left': $root.supportSkland }"
+                    v-theme-class="$root.color.blueBtn"
+                    mdui-menu="{ target: '#material-import-menu', covered: false }"
+                    ><i class="mdui-icon material-icons mdui-icon-left">archive</i
+                    >{{ $t('common.import') }}</button
+                  >
+                  <button
+                    v-if="$root.supportSkland"
+                    class="mdui-btn mdui-ripple mdui-btn-dense tag-btn btn-group-right no-grow"
+                    v-theme-class="$root.color.blueBtn"
+                    @click="$refs.sklandSettingDialog.open()"
+                    ><i class="mdui-icon material-icons">settings</i></button
+                  >
+                  <ul id="material-import-menu" class="mdui-menu">
+                    <li class="mdui-menu-item mdui-ripple">
+                      <a class="mdui-ripple pointer" @click="restoreData">{{
+                        $t('common.restore')
+                      }}</a>
+                    </li>
+                    <li class="mdui-menu-item mdui-ripple">
+                      <a class="mdui-ripple pointer" @click="importFromJSON">{{
+                        $t('cultivate.panel.button.importFromJSON')
+                      }}</a>
+                    </li>
+                    <li v-if="$root.supportSkland" class="mdui-menu-item mdui-ripple">
+                      <a class="mdui-ripple pointer" @click="importFromSkland">{{
+                        $t('cultivate.panel.button.importFromSkland')
+                      }}</a>
+                    </li>
+                  </ul>
+                </div>
                 <button
                   class="mdui-btn mdui-ripple mdui-btn-dense tag-btn"
                   v-theme-class="$root.color.blueBtn"
-                  @click="importFromJSON"
-                  ><i class="mdui-icon material-icons mdui-icon-left">archive</i
-                  >{{ $t('cultivate.panel.button.importFromJSON') }}</button
+                  mdui-menu="{ target: '#material-export-menu', covered: false }"
+                  ><i class="mdui-icon material-icons mdui-icon-left">unarchive</i
+                  >{{ $t('common.export') }}</button
                 >
+                <ul id="material-export-menu" class="mdui-menu">
+                  <li class="mdui-menu-item mdui-ripple">
+                    <a class="mdui-ripple pointer" @click="saveData">{{ $t('common.backup') }}</a>
+                  </li>
+                  <li class="mdui-menu-item mdui-ripple">
+                    <a
+                      v-if="$root.serverCN"
+                      class="mdui-ripple pointer"
+                      @click="exportToArkLights"
+                      >{{ $t('cultivate.panel.button.exportToArkLights') }}</a
+                    >
+                  </li>
+                </ul>
                 <button
                   class="mdui-btn mdui-ripple mdui-btn-dense tag-btn"
                   v-theme-class="['mdui-color-pink', 'mdui-color-pink-a100 mdui-ripple-black']"
@@ -391,14 +446,14 @@
                 class="card-triangle-small"
                 v-theme-class="color[materialTable[materialName].rare]"
               ></div>
-              <div class="mdui-card-header" :name="materialName">
+              <div class="mdui-card-header mdui-p-b-05" :name="materialName">
                 <!-- 图片 -->
                 <div
                   class="mdui-card-header-avatar mdui-valign pointer no-sl"
                   @click="showDropDetail(materialTable[materialName])"
                 >
                   <DataImg
-                    class="material-image no-pe"
+                    class="material-image"
                     type="item"
                     :name="materialTable[materialName].name"
                   />
@@ -440,7 +495,49 @@
                 </div>
                 <!-- /输入面板 -->
               </div>
+              <!-- 合成按钮 -->
+              <div class="mdui-container-fluid">
+                <div v-if="!showSyntBtn(materialTable[materialName])" class="mdui-row-xs-1">
+                  <button
+                    class="mdui-btn mdui-btn-dense small-btn mdui-btn-block mdui-btn-transparent"
+                    disabled
+                  >
+                    <i class="mdui-icon material-icons mdui-typo-subheading">gavel</i>
+                    <i class="mdui-icon material-icons mdui-typo-subheading">block</i>
+                  </button>
+                </div>
+                <div v-else class="mdui-row-xs-2 mdui-row-gapless">
+                  <div class="mdui-col">
+                    <button
+                      v-if="
+                        showSyntBtn(materialTable[materialName]) &&
+                        getSynthesizeMaxTimes(materialName) > 1
+                      "
+                      v-longpress="() => customSynthesize(materialName)"
+                      @click="synthesize(materialName)"
+                      @contextmenu.prevent="customSynthesize(materialName)"
+                      class="mdui-btn mdui-ripple mdui-btn-dense small-btn mdui-btn-block mdui-p-a-0"
+                      v-theme-class="$root.color.pinkText"
+                      ><i class="mdui-icon material-icons mdui-typo-subheading">gavel</i>
+                      {{ getSynthesizeMaxTimes(materialName) * syntProdNum(materialName) }}</button
+                    >
+                  </div>
+                  <div class="mdui-col">
+                    <button
+                      v-if="showSyntBtn(materialTable[materialName])"
+                      v-longpress="() => customSynthesize(materialName)"
+                      @click="synthesize(materialName, 1)"
+                      @contextmenu.prevent="customSynthesize(materialName)"
+                      class="mdui-btn mdui-ripple mdui-btn-dense small-btn mdui-btn-block mdui-p-a-0"
+                      v-theme-class="$root.color.pinkText"
+                      ><i class="mdui-icon material-icons mdui-typo-subheading">gavel</i>
+                      {{ syntProdNum(materialName) }}</button
+                    >
+                  </div>
+                </div>
+              </div>
             </div>
+            <!-- /合成按钮 -->
           </div>
           <!-- 占位 -->
           <div class="material-simple-grid mdui-m-r-2" v-for="pIndex in 6" :key="pIndex"></div>
@@ -510,7 +607,7 @@
                   class="mdui-card-header-avatar mdui-valign pointer no-sl"
                   @click="showDropDetail(materialTable[material.name])"
                 >
-                  <DataImg class="material-image no-pe" type="item" :name="material.name" />
+                  <DataImg class="material-image" type="item" :name="material.name" />
                 </div>
                 <!-- 材料名 -->
                 <div
@@ -698,6 +795,8 @@
     />
     <!-- 艾丽妮专精计算器 -->
     <LazyDialog ref="ireneCalcDialog" :component="dialogs.IreneCalculatorDialog" />
+    <!-- 森空岛设置 -->
+    <LazyDialog ref="sklandSettingDialog" :component="dialogs.SklandSettingDialog" />
   </div>
 </template>
 

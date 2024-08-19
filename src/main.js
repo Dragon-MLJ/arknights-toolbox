@@ -1,4 +1,5 @@
 import 'mdui/dist/css/mdui.css';
+import './utils/migration';
 import './registerServiceWorker';
 import _ from 'lodash';
 import Vue from 'vue';
@@ -53,6 +54,11 @@ new Vue({
   router,
   pinia,
   render: h => h(App),
+  provide() {
+    return {
+      isReleasedChar: this.isReleasedChar,
+    };
+  },
   data: {
     githubRepo: 'https://github.com/arkntools/arknights-toolbox',
     color: {
@@ -145,6 +151,9 @@ new Vue({
     i18nServerMessages() {
       return this.$i18n.messages[this.server];
     },
+    cnServerMessages() {
+      return this.$i18n.messages.cn;
+    },
     dark() {
       const { darkTheme, darkThemeFollowSystem } = this.setting;
       return (
@@ -179,9 +188,12 @@ new Vue({
         }
       },
     },
-    isImplementedGradedUniequip() {
+    isGradedUniequipReleased() {
       // 分级模组和黑键同期实装
-      return this.isImplementedChar('4046_ebnhlz');
+      return this.isReleasedChar('4046_ebnhlz');
+    },
+    supportSkland() {
+      return this.serverCN;
     },
   },
   methods: {
@@ -201,13 +213,13 @@ new Vue({
         });
       }
     },
-    isImplementedChar(name) {
+    isReleasedChar(name) {
       return name in this.i18nServerMessages.character;
     },
-    isImplementedMaterial(name) {
+    isReleasedMaterial(name) {
       return name in this.i18nServerMessages.material;
     },
-    isImplementedUniequip(id) {
+    isReleasedUniequip(id) {
       return id in (this.i18nServerMessages.uniequip || {});
     },
     updateTitle() {
@@ -238,12 +250,12 @@ new Vue({
         case 'cn':
         case 'tw':
           return `https://prts.wiki/w/${this.getLocalCharacterName(name, 'cn')}`;
-        case 'jp':
-          // eslint-disable-next-line no-case-declarations
+        case 'jp': {
           const jpName = this.getLocalCharacterName(name);
           return `https://arknights.wikiru.jp/index.php?${await encodeURIComponentEUCJP(
             jpName === 'W' ? `${jpName}(プレイアブル)` : jpName,
           )}`;
+        }
         case 'kr':
           return `https://namu.wiki/w/${this.getLocalCharacterName(name)}(명일방주)`;
         default:
@@ -326,30 +338,12 @@ new Vue({
       nls.setItem('server', this.server);
     } else this.server = server;
 
-    // 禁止 iOS 缩放
-    (() => {
-      document.addEventListener(
-        'touchstart',
-        event => {
-          if (event.touches.length > 1) {
-            event.preventDefault();
-          }
-        },
-        { passive: false },
-      );
-      let lastTouchEnd = 0;
-      document.addEventListener(
-        'touchend',
-        event => {
-          const now = Date.now();
-          if (now - lastTouchEnd <= 300) {
-            event.preventDefault();
-          }
-          lastTouchEnd = now;
-        },
-        false,
-      );
-    })();
+    // 禁止 iOS 双指缩放
+    document.addEventListener('gesturestart', function (event) {
+      event.preventDefault();
+    });
+    // 配合 touch-action: manipulation; 禁止 iOS 双击缩放
+    document.body.addEventListener('click', () => {});
 
     // 初始化工具箱数据
     this.initData();
@@ -358,7 +352,7 @@ new Vue({
     this.updateScreenWidth();
     window.addEventListener('resize', _.throttle(this.updateScreenWidth, 500, { leading: false }));
     window.addEventListener('orientationchange', this.updateScreenWidth);
-    $('#footer').removeClass('mdui-hidden');
+    $('#footer').removeAttr('hidden');
   },
   i18n,
 }).$mount('#app');

@@ -1,9 +1,9 @@
-export const VConsoleLoaded = () => !!window.VConsole;
+export const vConsoleLoaded = () => !!window.VConsole;
 
 export const loadVConsole = async () => {
-  if (VConsoleLoaded()) return;
+  if (vConsoleLoaded()) return;
   await import(
-    /* webpackIgnore: true */ 'https://fastly.jsdelivr.net/npm/vconsole@3.14.6/dist/vconsole.min.js'
+    /* webpackIgnore: true */ 'https://fastly.jsdelivr.net/npm/vconsole@3.15.1/dist/vconsole.min.js'
   );
   new window.VConsole();
 };

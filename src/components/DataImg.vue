@@ -1,9 +1,9 @@
 <template>
   <img
-    v-show="!(hideWhenError && isError)"
+    class="no-sl no-pe"
     :src="imgSrc"
     :style="imgStyle"
-    :loading="lazy ? 'lazy' : undefined"
+    :loading="loading"
     crossorigin="anonymous"
     @error="isError = true"
   />
@@ -14,7 +14,7 @@ import { defineComponent } from 'vue';
 import { mapState } from 'pinia';
 import { useHotUpdateStore } from '@/store/hotUpdate';
 import { PNG1P } from '@/utils/constant';
-import NO_IMAGE from '@/assets/img/no-image.png';
+import { IS_IOS } from '@/utils/env';
 
 const defaultErrorStyle = {
   backgroundColor: '#bdbdbd',
@@ -27,7 +27,6 @@ export default defineComponent({
     type: String,
     name: [Number, String],
     errorStyle: [Boolean, Object],
-    hideWhenError: Boolean,
     lazy: Boolean,
   },
   data: () => ({
@@ -41,13 +40,22 @@ export default defineComponent({
   computed: {
     ...mapState(useHotUpdateStore, ['dataBaseURL']),
     imgSrc() {
-      if (!(this.type && this.name)) return PNG1P;
-      if (this.isError && !this.hideWhenError) return NO_IMAGE;
+      if (!(this.dataBaseURL && this.type && this.name)) return PNG1P;
       return `${this.dataBaseURL}/img/${this.type}/${this.name}.png`;
     },
     imgStyle() {
       if (!this.isError) return;
       return this.errorStyle === true ? defaultErrorStyle : this.errorStyle;
+    },
+    loading() {
+      // iOS PWA image lazy loading failed bug
+      return !IS_IOS && this.lazy ? 'lazy' : undefined;
+    },
+  },
+  methods: {
+    handleError(e) {
+      console.error('[DataImg] loading error', this.imgSrc);
+      console.error(e);
     },
   },
 });
